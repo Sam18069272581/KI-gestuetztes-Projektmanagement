@@ -1,0 +1,9 @@
+# Personal data of team members and run logs never go into this public repo.
+data/
+logs/
+.env
+
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
