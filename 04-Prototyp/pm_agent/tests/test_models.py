@@ -1,0 +1,50 @@
+from datetime import date
+
+import pytest
+from pydantic import ValidationError
+
+from pm_agent.models import Assignment, Member, Plan, Project, Task
+
+
+@pytest.mark.parametrize("hours", [0, -4])
+def test_task_estimate_must_be_positive(hours):
+    with pytest.raises(ValidationError):
+        Task(id="A", title="Login", estimate_hours=hours)
+
+
+@pytest.mark.parametrize("level", [0, 6])
+def test_skill_level_is_between_1_and_5(level):
+    with pytest.raises(ValidationError):
+        Member(name="Anna", skills={"Python": level}, hours_per_week=10)
+
+
+def test_member_needs_positive_hours():
+    with pytest.raises(ValidationError):
+        Member(name="Anna", hours_per_week=0)
+
+
+def test_blank_strings_are_rejected_and_whitespace_is_stripped():
+    with pytest.raises(ValidationError):
+        Member(name="   ", hours_per_week=10)
+    assert Member(name="  Anna ", hours_per_week=10).name == "Anna"
+
+
+def test_misspelled_field_from_the_llm_is_rejected():
+    with pytest.raises(ValidationError) as err:
+        Task.model_validate({"id": "A", "title": "Login", "estimate_hours": 8, "hours": 8})
+    assert err.value.errors()[0]["type"] == "extra_forbidden"
+
+
+def test_assignment_needs_a_reason():
+    with pytest.raises(ValidationError):
+        Assignment(task_id="A", member="Anna", reason="")
+
+
+def test_deadline_before_start_is_rejected():
+    with pytest.raises(ValidationError, match="Deadline liegt vor dem Startdatum"):
+        Project(idea="App", start_date=date(2026, 11, 9), deadline=date(2026, 11, 6))
+
+
+def test_plan_needs_at_least_one_task():
+    with pytest.raises(ValidationError):
+        Plan(tasks=[], assignments=[])
