@@ -85,10 +85,10 @@ def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
         )
     for item in load:
         if round(item.utilization, _DIGITS) > 1:
+            percent = math.ceil(round(item.utilization * 100, _DIGITS))  # never reads "100%"
             warnings.append(
                 f"{item.member} ist überlastet: {_hours(item.assigned_hours)} h zugewiesen, "
-                f"bis zur Deadline sind {_hours(item.capacity_hours)} h verfügbar "
-                f"({item.utilization:.0%})"
+                f"bis zur Deadline sind {_hours(item.capacity_hours)} h verfügbar ({percent}%)"
             )
     for task in plan.tasks:
         member = members[owner[task.id]]

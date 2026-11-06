@@ -153,6 +153,15 @@ def test_overload_and_missed_deadline_are_warnings_not_errors():
     ]
 
 
+def test_slight_overload_reads_101_percent_and_one_day_late_is_singular():
+    p = plan(task("A", 40.1), owners={"A": "Anna"})  # 5.0125 workdays: ends Mon 16.11.
+    result = check_plan(p, [ANNA], project(deadline=date(2026, 11, 13)))
+    assert result.warnings == [
+        "Der Plan endet am 16.11.2026, 1 Arbeitstag nach der Deadline (13.11.2026)",
+        "Anna ist überlastet: 40.1 h zugewiesen, bis zur Deadline sind 40 h verfügbar (101%)",
+    ]
+
+
 def test_missing_skill_of_the_assignee_is_a_warning_and_case_is_ignored():
     # Ben knows React, but the task is Anna's. 'PYTHON' matches Anna's 'Python'.
     p = plan(task("A", 8, skills=["PYTHON", "React"]), owners={"A": "Anna"})
