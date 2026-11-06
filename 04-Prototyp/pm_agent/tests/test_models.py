@@ -6,8 +6,8 @@ from pydantic import ValidationError
 from pm_agent.models import Assignment, Member, Plan, Project, Task
 
 
-@pytest.mark.parametrize("hours", [0, -4])
-def test_task_estimate_must_be_positive(hours):
+@pytest.mark.parametrize("hours", [0, -4, float("inf")])
+def test_task_estimate_must_be_positive_and_finite(hours):
     with pytest.raises(ValidationError):
         Task(id="A", title="Login", estimate_hours=hours)
 
@@ -24,9 +24,15 @@ def test_skill_levels_1_and_5_are_valid(level):
     assert member.skills == {"Python": level}
 
 
-def test_member_needs_positive_hours():
+@pytest.mark.parametrize("hours", [0, 0.5, 169, float("inf")])
+def test_weekly_hours_must_fit_into_a_week(hours):
     with pytest.raises(ValidationError):
-        Member(name="Anna", hours_per_week=0)
+        Member(name="Anna", hours_per_week=hours)
+
+
+@pytest.mark.parametrize("hours", [1, 168])
+def test_weekly_hours_from_1_to_168_are_valid(hours):
+    assert Member(name="Anna", hours_per_week=hours).hours_per_week == hours
 
 
 def test_blank_strings_are_rejected_and_whitespace_is_stripped():

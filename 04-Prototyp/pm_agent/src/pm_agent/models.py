@@ -23,7 +23,9 @@ class _Model(BaseModel):
 class Member(_Model):
     name: NonEmpty
     skills: dict[NonEmpty, SkillLevel] = Field(default_factory=dict)
-    hours_per_week: float = Field(gt=0)
+    # A week has 168 hours. Below 1 h a member cannot be planned, and tiny values
+    # underflow to 0 h per workday.
+    hours_per_week: float = Field(ge=1, le=7 * 24)
     note: str = ""
 
 
@@ -44,7 +46,7 @@ class Task(_Model):
     title: NonEmpty
     description: str = ""
     required_skills: list[NonEmpty] = Field(default_factory=list)
-    estimate_hours: float = Field(gt=0)
+    estimate_hours: float = Field(gt=0, allow_inf_nan=False)
     depends_on: list[NonEmpty] = Field(default_factory=list)
 
 
