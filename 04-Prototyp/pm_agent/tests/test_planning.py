@@ -54,18 +54,22 @@ def test_chain_for_one_member_runs_back_to_back():
     )
     assert result.end_date == date(2026, 11, 11)
     assert result.critical_path == ["A", "B"]
+    # 30 workdays from Mon 09.11. to Fri 18.12. at 8 h each; weekends do not count.
+    assert (result.load[0].assigned_hours, result.load[0].capacity_hours) == (24, 240)
 
 
 def test_members_work_in_parallel_and_critical_path_follows_the_longer_branch():
+    # C comes first on purpose: the order of tasks in the LLM's plan must not matter.
     p = plan(
+        task("C", 8, deps=["A", "B"]),
         task("A", 8),
         task("B", 16),
-        task("C", 8, deps=["A", "B"]),
         owners={"A": "Anna", "B": "Ben", "C": "Anna"},
     )
     result = check_plan(p, [ANNA, BEN], project())
     assert by_id(result)["A"].start == by_id(result)["B"].start == MON
     assert by_id(result)["C"].start == date(2026, 11, 11)  # waits two days for B
+    assert result.end_date == date(2026, 11, 11)
     assert result.critical_path == ["B", "C"]
 
 
@@ -82,12 +86,29 @@ def test_part_time_member_takes_longer():
     assert result.schedule[0].end == date(2026, 11, 11)  # 2.5 workdays: Mon to Wed
 
 
-def test_float_noise_does_not_shift_the_end_date():
-    # 7 h/week = 1.4 h/day, so each 2.1 h task takes 1.5 days. The float sum is
-    # 3.0000000000000004; a plain ceil would end on Thursday instead of Wednesday.
+def test_next_task_starts_on_the_day_the_previous_one_ends():
+    dora = Member(name="Dora", hours_per_week=38.5)  # 7.7 h per workday
+    p = plan(
+        task("A", 3.5),
+        task("B", 35, deps=["A"]),
+        task("C", 1, deps=["B"]),
+        owners={"A": "Dora", "B": "Dora", "C": "Dora"},
+    )
+    s = by_id(check_plan(p, [dora], project()))
+    assert s["B"].start == MON  # A takes less than a day
+    # A + B = 38.5 h = exactly 5 workdays; the float offset is 4.999999999999999.
+    assert s["C"].start == date(2026, 11, 16)
+
+
+def test_plan_that_exactly_fits_has_no_warnings_despite_float_noise():
+    # 7 h/week = 1.4 h/day, so each 2.1 h task takes 1.5 days and the plan fills Mon-Wed.
+    # The float sum is 3.0000000000000004 and the load 1.0000000000000002: a plain ceil
+    # would end on Thursday, and a plain '> 1' would report an overload.
     clara = Member(name="Clara", hours_per_week=7)
     p = plan(task("A", 2.1), task("B", 2.1, deps=["A"]), owners={"A": "Clara", "B": "Clara"})
-    assert check_plan(p, [clara], project()).end_date == date(2026, 11, 11)
+    result = check_plan(p, [clara], project(deadline=date(2026, 11, 11)))
+    assert result.end_date == date(2026, 11, 11)
+    assert result.warnings == []
 
 
 def test_overload_and_missed_deadline_are_warnings_not_errors():
@@ -104,12 +125,11 @@ def test_overload_and_missed_deadline_are_warnings_not_errors():
     ]
 
 
-def test_missing_skill_is_a_warning_and_matching_ignores_case():
-    p = plan(task("A", 8, skills=["python", "Docker"]), owners={"A": "Anna"})
-    result = check_plan(p, [ANNA], project())
-    assert result.warnings == [
-        "Task 'A' braucht 'Docker', Anna hat diese Fähigkeit nicht angegeben"
-    ]
+def test_missing_skill_of_the_assignee_is_a_warning_and_case_is_ignored():
+    # Ben knows React, but the task is Anna's. 'PYTHON' matches Anna's 'Python'.
+    p = plan(task("A", 8, skills=["PYTHON", "React"]), owners={"A": "Anna"})
+    result = check_plan(p, [ANNA, BEN], project())
+    assert result.warnings == ["Task 'A' braucht 'React', Anna hat diese Fähigkeit nicht angegeben"]
 
 
 def test_structural_errors_are_all_reported_and_stop_scheduling():
@@ -135,6 +155,17 @@ def test_structural_errors_are_all_reported_and_stop_scheduling():
             "Task 'B' ist niemandem zugewiesen",
         ]
     )
+
+
+def test_duplicate_ids_do_not_add_a_cycle_error():
+    # Merged into one graph, A -> B -> A would look like a cycle. Which A is meant is unclear.
+    p = plan(
+        task("A", 8),
+        task("B", 8, deps=["A"]),
+        task("A", 8, deps=["B"]),
+        owners={"A": "Anna", "B": "Anna"},
+    )
+    assert check_plan(p, [ANNA], project()).errors == ["Die Task-ID 'A' ist mehrfach vergeben"]
 
 
 def test_cycle_is_reported_with_its_path():

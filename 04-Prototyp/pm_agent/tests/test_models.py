@@ -18,6 +18,12 @@ def test_skill_level_is_between_1_and_5(level):
         Member(name="Anna", skills={"Python": level}, hours_per_week=10)
 
 
+@pytest.mark.parametrize("level", [1, 5])
+def test_skill_levels_1_and_5_are_valid(level):
+    member = Member(name="Anna", skills={"Python": level}, hours_per_week=10)
+    assert member.skills == {"Python": level}
+
+
 def test_member_needs_positive_hours():
     with pytest.raises(ValidationError):
         Member(name="Anna", hours_per_week=0)
@@ -38,9 +44,12 @@ def test_misspelled_field_from_the_llm_is_rejected():
 def test_assignment_needs_a_reason():
     with pytest.raises(ValidationError):
         Assignment(task_id="A", member="Anna", reason="")
+    with pytest.raises(ValidationError):
+        Assignment.model_validate({"task_id": "A", "member": "Anna"})
 
 
-def test_deadline_before_start_is_rejected():
+def test_deadline_may_equal_the_start_but_not_precede_it():
+    Project(idea="App", start_date=date(2026, 11, 9), deadline=date(2026, 11, 9))
     with pytest.raises(ValidationError, match="Deadline liegt vor dem Startdatum"):
         Project(idea="App", start_date=date(2026, 11, 9), deadline=date(2026, 11, 6))
 
