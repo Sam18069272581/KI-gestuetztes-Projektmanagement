@@ -28,6 +28,15 @@ def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
     members = {m.name: m for m in team}
     owner = {a.task_id: a.member for a in plan.assignments}
     start, end, driver = _schedule(plan, members, owner)
+    last = max(plan.tasks, key=lambda t: end[t.id]).id
+    # Dates end on 31.12.9999. Written as "not <=" so that an infinite offset fails too.
+    if not end[last] <= count_workdays(project.start_date, date.max):
+        return CheckResult(
+            errors=[
+                f"Task '{last}' würde erst nach dem {_fmt(date.max)} enden, "
+                "so weit reicht der Kalender nicht"
+            ]
+        )
 
     schedule = []
     for task in plan.tasks:
@@ -44,7 +53,7 @@ def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
     end_date = max(s.end for s in schedule)
 
     # Critical path: walk back from the task that finishes last along whatever set each start.
-    node = max(plan.tasks, key=lambda t: end[t.id]).id
+    node = last
     critical_path = []
     while node is not None:
         critical_path.append(node)

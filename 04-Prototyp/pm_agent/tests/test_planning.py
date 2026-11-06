@@ -63,6 +63,13 @@ def test_a_huge_estimate_does_not_freeze_the_check():
     assert result.ok
 
 
+def test_plan_beyond_the_calendar_is_an_error_not_a_crash():
+    result = check_plan(plan(task("A", 1e300), owners={"A": "Anna"}), [ANNA], project())
+    assert result.errors == [
+        "Task 'A' würde erst nach dem 31.12.9999 enden, so weit reicht der Kalender nicht"
+    ]
+
+
 def test_chain_for_one_member_runs_back_to_back():
     p = plan(task("A", 8), task("B", 16, deps=["A"]), owners={"A": "Anna", "B": "Anna"})
     result = check_plan(p, [ANNA], project())
