@@ -103,14 +103,14 @@ def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
 def add_workdays(start: date, n: int) -> date:
     """Date of workday n, where workday 0 is the first Mon-Fri on or after start."""
     day = _next_workday(start)
-    for _ in range(n):
-        day = _next_workday(day + timedelta(days=1))
-    return day
+    weeks, weekday = divmod(day.weekday() + n, WORKDAYS_PER_WEEK)
+    return day + timedelta(weeks=weeks, days=weekday - day.weekday())
 
 
 def count_workdays(first: date, last: date) -> int:
     """Number of Mon-Fri dates in [first, last]; 0 if last is before first."""
-    return sum((first + timedelta(days=i)).weekday() < 5 for i in range((last - first).days + 1))
+    weeks, rest = divmod(max((last - first).days + 1, 0), 7)
+    return weeks * WORKDAYS_PER_WEEK + sum((first.weekday() + i) % 7 < 5 for i in range(rest))
 
 
 def _next_workday(day: date) -> date:

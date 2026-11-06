@@ -1,4 +1,5 @@
-from datetime import date
+import time
+from datetime import date, timedelta
 
 import pytest
 
@@ -40,6 +41,26 @@ def test_workday_helpers_skip_weekends():
     assert add_workdays(sat, 0) == date(2026, 11, 16)
     assert count_workdays(MON, sun) == 5
     assert count_workdays(sun, MON) == 0
+
+
+def test_workday_helpers_match_counting_day_by_day():
+    for first in [MON + timedelta(days=i) for i in range(7)]:  # each weekday as the start
+        days = [first + timedelta(days=i) for i in range(30)]
+        workdays = [day for day in days if day.weekday() < 5]
+        assert [add_workdays(first, n) for n in range(len(workdays))] == workdays
+        expected_counts = [sum(x.weekday() < 5 for x in days[: i + 1]) for i in range(len(days))]
+        assert [count_workdays(first, day) for day in days] == expected_counts
+
+
+def test_a_huge_estimate_does_not_freeze_the_check():
+    # 15,000,000 h is absurd but still ends before the year 9999. Walking day by day
+    # through about 1.9 million workdays took seconds per task, so one typo froze the check.
+    tasks = [task("A", 15_000_000)] + [task(f"B{i}", 8, deps=["A"]) for i in range(10)]
+    p = plan(*tasks, owners={t.id: "Anna" for t in tasks})
+    began = time.perf_counter()
+    result = check_plan(p, [ANNA], project())
+    assert time.perf_counter() - began < 1
+    assert result.ok
 
 
 def test_chain_for_one_member_runs_back_to_back():
