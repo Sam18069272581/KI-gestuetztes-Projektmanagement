@@ -59,7 +59,14 @@ def run_planning(project: Project, team: list[Member], log_dir: Path | None = LO
 
 def _run(project: Project, team: list[Member], rounds: list[dict[str, Any]]) -> Plan:
     tools = PlanningTools(project, team)
-    runner = Anthropic().beta.messages.tool_runner(
+    client = Anthropic()
+    # The SDK checks credentials only when it sends, and then raises a bare TypeError.
+    if client.api_key is None and client.auth_token is None and client.credentials is None:
+        raise PlanningError(
+            "Kein Zugang zur Claude API: ANTHROPIC_API_KEY ist nicht gesetzt. Trage den "
+            "Schlüssel in 04-Prototyp/pm_agent/.env ein und starte mit --env-file .env."
+        )
+    runner = client.beta.messages.tool_runner(
         model=_model(),
         max_tokens=16_000,
         system=SYSTEM_PROMPT,

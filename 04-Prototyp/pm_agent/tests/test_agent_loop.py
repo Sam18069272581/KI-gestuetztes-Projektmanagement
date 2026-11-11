@@ -78,6 +78,40 @@ def test_a_rejected_plan_goes_back_to_claude_and_every_round_is_logged(api, tmp_
     assert first["usage"]["input_tokens"] == 1200
 
 
+def check(plan, call_id):
+    return {"type": "tool_use", "id": call_id, "name": "check_plan", "input": plan}
+
+
+def test_the_run_stops_after_the_last_round_without_an_accepted_plan(api, tmp_path):
+    replies, requests = api
+    # Claude keeps checking and never submits.
+    replies += [reply([check(plan_input(), f"call_{n}")]) for n in range(agent.MAX_ROUNDS)]
+
+    with pytest.raises(PlanningError, match=f"nach {agent.MAX_ROUNDS} Runden"):
+        run_planning(PROJECT, TEAM, log_dir=tmp_path)
+
+    assert len(requests) == agent.MAX_ROUNDS
+    assert len(read_log(tmp_path)["rounds"]) == agent.MAX_ROUNDS
+
+
+def test_missing_credentials_are_a_planning_error_in_german(monkeypatch, tmp_path):
+    for name in (
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_PROFILE",
+        "ANTHROPIC_IDENTITY_TOKEN",
+        "ANTHROPIC_IDENTITY_TOKEN_FILE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    for home in ("HOME", "USERPROFILE", "APPDATA", "XDG_CONFIG_HOME"):  # no saved login profile
+        monkeypatch.setenv(home, str(tmp_path / "home"))
+
+    with pytest.raises(PlanningError, match="ANTHROPIC_API_KEY"):
+        run_planning(PROJECT, TEAM, log_dir=tmp_path)
+
+    assert read_log(tmp_path)["outcome"] == "error"
+
+
 def test_a_run_without_plan_is_logged_with_the_error(api, tmp_path):
     replies, _ = api
     replies.append(reply([{"type": "text", "text": "Ich brauche mehr Infos."}], "end_turn"))
