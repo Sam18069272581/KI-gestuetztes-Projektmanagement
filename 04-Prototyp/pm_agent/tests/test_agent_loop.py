@@ -57,9 +57,12 @@ def test_a_rejected_plan_goes_back_to_claude_and_every_round_is_logged(api, tmp_
         reply([{"type": "text", "text": "Korrigiert."}, submit(plan_input(), "call_2")]),
     ]
 
-    plan = run_planning(PROJECT, TEAM, log_dir=tmp_path)
+    seen = []
+    plan = run_planning(PROJECT, TEAM, log_dir=tmp_path, on_round=seen.append)
 
     assert plan == Plan.model_validate(plan_input())
+    # The UI shows each round while the run goes on, with the tool results already filled in.
+    assert [r["tool_results"][0]["is_error"] for r in seen] == [True, False]
     (rejection,) = requests[1]["messages"][-1]["content"]
     assert rejection["is_error"] is True
     assert "Plan abgelehnt" in json.dumps(rejection, ensure_ascii=False)
@@ -67,6 +70,9 @@ def test_a_rejected_plan_goes_back_to_claude_and_every_round_is_logged(api, tmp_
     log = read_log(tmp_path)
     assert log["outcome"] == "plan"
     assert log["plan"] == plan.model_dump(mode="json")
+    # Project and team are kept so that a run can be reopened in the UI.
+    assert log["project"] == PROJECT.model_dump(mode="json")
+    assert log["team"] == [m.model_dump(mode="json") for m in TEAM]
     first, second = log["rounds"]
     assert first["tool_calls"][0]["name"] == "submit_plan"
     assert first["tool_results"][0]["is_error"] is True

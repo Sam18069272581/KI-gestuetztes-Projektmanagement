@@ -4,6 +4,7 @@ corrects it until submit_plan accepts it. The project lead reviews the result.
 
 import json
 import os
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
@@ -38,26 +39,37 @@ class PlanningError(RuntimeError):
     """The agent produced no plan. The message is German and meant for the project lead."""
 
 
-def run_planning(project: Project, team: list[Member], log_dir: Path | None = LOG_DIR) -> Plan:
+def run_planning(
+    project: Project,
+    team: list[Member],
+    log_dir: Path | None = LOG_DIR,
+    on_round: Callable[[dict[str, Any]], None] | None = None,
+) -> Plan:
     """Let Claude plan the project. Returns the first plan that submit_plan accepts: no
     errors, warnings possible. Raises PlanningError; errors of the API itself propagate.
-    Each run, successful or not, is written to `log_dir` as one JSON file (None: no log)."""
+    Each run, successful or not, is written to `log_dir` as one JSON file (None: no log).
+    `on_round` gets each round as soon as its tools have run, for live progress."""
     rounds: list[dict[str, Any]] = []
     plan: Plan | None = None
     error = None
     started = datetime.now().astimezone()
     try:
-        plan = _run(project, team, rounds)
+        plan = _run(project, team, rounds, on_round or (lambda _: None))
         return plan
     except Exception as err:
         error = f"{type(err).__name__}: {err}"
         raise
     finally:
         if log_dir is not None:
-            _write_log(log_dir, started, rounds, plan, error)
+            _write_log(log_dir, started, project, team, rounds, plan, error)
 
 
-def _run(project: Project, team: list[Member], rounds: list[dict[str, Any]]) -> Plan:
+def _run(
+    project: Project,
+    team: list[Member],
+    rounds: list[dict[str, Any]],
+    on_round: Callable[[dict[str, Any]], None],
+) -> Plan:
     tools = PlanningTools(project, team)
     client = Anthropic()
     # The SDK checks credentials only when it sends, and then raises a bare TypeError.
@@ -90,6 +102,7 @@ def _run(project: Project, team: list[Member], rounds: list[dict[str, Any]]) -> 
             # Runs the tools now; the runner reuses the result for the next request.
             response = runner.generate_tool_call_response()
             rounds[-1]["tool_results"] = _tool_results(message, response)
+            on_round(rounds[-1])
             if tools.plan is not None:
                 return tools.plan
     if message is not None and message.stop_reason == "end_turn":
@@ -148,6 +161,8 @@ def _text(content: Any) -> str:
 def _write_log(
     log_dir: Path,
     started: datetime,
+    project: Project,
+    team: list[Member],
     rounds: list[dict[str, Any]],
     plan: Plan | None,
     error: str | None,
@@ -160,6 +175,8 @@ def _write_log(
         "requested_model": _model(),
         "outcome": "plan" if plan is not None else "error",
         "error": error,
+        "project": project.model_dump(mode="json"),
+        "team": [member.model_dump(mode="json") for member in team],
         "rounds": [{"round": n, **item} for n, item in enumerate(rounds, start=1)],
         "plan": plan.model_dump(mode="json") if plan is not None else None,
     }
