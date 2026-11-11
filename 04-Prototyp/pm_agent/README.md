@@ -4,7 +4,27 @@ KI-Agent für die Planungsphase von Softwareprojekten: Aufgaben zerlegen, Aufwan
 nach Skills und Verfügbarkeit zuweisen, Terminplan und Risiken ableiten. Die Projektleitung
 prüft und entscheidet.
 
-Stand: Planungskern (Datenmodell und deterministische Prüfung) und Agent. Die Oberfläche folgt.
+Stand: Planungskern (Datenmodell und deterministische Prüfung), Agent mit Laufprotokoll und
+Streamlit-Oberfläche.
+
+## Oberfläche
+
+```bash
+cd 04-Prototyp/pm_agent
+uv run --env-file .env streamlit run app.py
+```
+
+Sechs Schritte als Reiter:
+
+1. **Team**: Personen mit Skills (z. B. `Python 4, SQL 3`) und Wochenstunden; lokal speichern
+   in `data/team.json`. Ohne Zustimmung des Teams startet keine Planung.
+2. **Projekt**: Idee, Start, Deadline.
+3. **Planung**: Claude plant, jede Runde erscheint sofort. Alternativ einen protokollierten Lauf
+   aus `logs/` öffnen, ohne Claude erneut aufzurufen (z. B. für Vorführungen).
+4. **Ergebnis**: Planende, Fehler, Warnungen, Gantt-Diagramm, Auslastung, Begründungen, Risiken.
+5. **Anpassen**: Tabelle ändern und erneut prüfen; nur die deterministische Prüfung, kein LLM.
+6. **Export**: Markdown oder CSV. Jeder Export wird mit Dauer und Änderungen in `logs/runs.csv`
+   vermerkt, als Datengrundlage für den Vorher-nachher-Vergleich.
 
 ## Agent
 
