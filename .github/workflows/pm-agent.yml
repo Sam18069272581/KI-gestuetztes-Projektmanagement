@@ -1,0 +1,29 @@
+# Lint and offline tests of the planning agent in 04-Prototyp/pm_agent.
+# The live API test skips itself: no ANTHROPIC_API_KEY is configured here.
+name: pm-agent
+
+on:
+  push:
+    branches: [main]
+    paths: ["04-Prototyp/pm_agent/**", ".github/workflows/pm-agent.yml"]
+  pull_request:
+    paths: ["04-Prototyp/pm_agent/**", ".github/workflows/pm-agent.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 04-Prototyp/pm_agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.16"
+      - run: uv sync --locked --python 3.11
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
