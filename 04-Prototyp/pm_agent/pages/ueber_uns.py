@@ -14,8 +14,8 @@ Beispiel.
 
 **Was die Website enthält**
 
-- **Agenten:** Planung mit Claude und deterministischer Prüfung; Durchführung und Kontrolle als
-  erste Fassung ohne LLM.
+- **Agenten:** Planung, Durchführung und Kontrolle. Claude schlägt vor, Python prüft
+  deterministisch. Die Agenten für Durchführung und Kontrolle sind ein erstes Gerüst.
 - **KI-Lab:** kontrollierter Vergleich derselben Art von Planungsaufgabe ohne und mit KI-Hilfe.
 
 **Grundsätze**

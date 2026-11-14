@@ -24,14 +24,16 @@ cards = [
     ),
     (
         "Durchführung",
-        "Fortschritt und Ist-Stunden je Aufgabe erfassen. Statusbericht und "
-        "Arbeitspaketbeschreibungen werden aus Vorlagen gefüllt. Noch ohne LLM.",
+        "Fortschritt und Ist-Stunden je Aufgabe erfassen. Claude schlägt Zusammenfassung und "
+        "nächste Schritte vor. Statusbericht und Arbeitspaketbeschreibungen werden aus Vorlagen "
+        "gefüllt.",
         "pages/durchfuehrung.py",
     ),
     (
         "Kontrolle",
         "Plan und Ist vergleichen: Fortschritt, Abweichung, Verzug, Kosten bei gesetztem "
-        "Stundensatz und der Aufwand des Planungsagenten. Noch ohne LLM.",
+        "Stundensatz. Claude bewertet den Stand und schlägt Gegenmaßnahmen vor. Dazu der "
+        "Aufwand der Agenten.",
         "pages/kontrolle.py",
     ),
 ]

@@ -162,6 +162,14 @@ def test_every_menu_entry_opens_and_explains_its_empty_state(site):
     assert "Angaben fehlen noch" in at.warning[0].value
 
 
+def test_startseite_and_ueber_uns_describe_all_three_agents(site):
+    # Durchführung and Kontrolle have an agent too: no page may still call them "ohne LLM".
+    start = " ".join(m.value for m in site.markdown)
+    about = " ".join(m.value for m in site.switch_page("pages/ueber_uns.py").run().markdown)
+    assert "ohne LLM" not in start and "ohne LLM" not in about
+    assert "Aufwand der Agenten" in start and "Planungsagenten" not in start
+
+
 def test_project_and_team_survive_a_visit_to_another_page(site):
     at = fill_project(site.switch_page(PLANUNG).run())
     # What the team editor returned after the project lead added Ben.
