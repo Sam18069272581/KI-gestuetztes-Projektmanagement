@@ -135,8 +135,8 @@ def planned(project, team, on_round=None):
 
 def test_every_menu_entry_opens_and_explains_its_empty_state(site):
     assert not site.exception
-    assert [t.value for t in site.title] == ["PM-Agent"]
-    assert site.header[0].value == "Startseite"
+    assert [t.value for t in site.title] == ["Der Agent schlägt vor. *Du entscheidest.*"]
+    assert any("PM-AGENT" in h.value for h in site.html)  # the top bar of every page
     assert "Noch kein Projekt übernommen." in [i.value for i in site.info]
 
     expected = {
@@ -160,6 +160,13 @@ def test_every_menu_entry_opens_and_explains_its_empty_state(site):
         assert not at.exception, path
         assert at.header[0].value == header
     assert "Angaben fehlen noch" in at.warning[0].value
+
+
+def test_the_buttons_on_the_startseite_open_the_pages_they_name(site):
+    button(site, "Projekt planen").click()
+    at = site.run()
+    assert not at.exception
+    assert at.header[0].value == "Planung"
 
 
 def test_startseite_and_ueber_uns_describe_all_three_agents(site):

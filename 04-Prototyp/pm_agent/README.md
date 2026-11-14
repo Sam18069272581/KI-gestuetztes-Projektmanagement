@@ -35,6 +35,10 @@ Durchführung und Kontrolle rechnen mit dem übernommenen Plan (`data/projekt.js
 erfassten Fortschritt. Ein Logo erscheint oben rechts, sobald `assets/logo.svg` oder
 `assets/logo.png` existiert.
 
+Farben und Schrift stehen in `.streamlit/config.toml`. Hervorhebung, Karten, Schaltflächen und
+Übergänge (Seitenwechsel, Reiter, Hover) stehen in `assets/style.css`; `app.py` lädt die Datei
+bei jedem Lauf. Wer im System weniger Bewegung eingestellt hat, bekommt keine Animationen.
+
 Für KI-Runden im KI-Lab zusätzlich `OPENAI_API_KEY` und `PM_MODEL` in `.env` eintragen. Ohne
 sie funktionieren die Runden ohne KI, KI-Runden melden einen Fehler.
 
