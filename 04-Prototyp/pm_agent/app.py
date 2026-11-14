@@ -12,32 +12,46 @@ ROOT = Path(__file__).parent
 st.set_page_config(page_title="PM-Agent", page_icon=":material/view_timeline:", layout="wide")
 state = st.session_state
 
-page = st.navigation(
-    {
-        "": [st.Page("pages/startseite.py", title="Startseite", icon=":material/home:")],
-        "Agenten": [
-            st.Page("pages/planung.py", title="Planung", icon=":material/view_timeline:"),
-            st.Page("pages/durchfuehrung.py", title="Durchführung", icon=":material/task_alt:"),
-            st.Page("pages/kontrolle.py", title="Kontrolle", icon=":material/monitoring:"),
-        ],
-        "Experiment": [st.Page("pages/ki_lab.py", title="KI-Lab", icon=":material/science:")],
-        "Info": [
-            st.Page("pages/ueber_uns.py", title="Über uns", icon=":material/groups:"),
-            st.Page("pages/impressum.py", title="Impressum", icon=":material/gavel:"),
-        ],
-    }
-)
+MENU = {
+    "": [st.Page("pages/startseite.py", title="Startseite", icon=":material/home:")],
+    "Agenten": [
+        st.Page("pages/planung.py", title="Planung", icon=":material/view_timeline:"),
+        st.Page("pages/durchfuehrung.py", title="Durchführung", icon=":material/task_alt:"),
+        st.Page("pages/kontrolle.py", title="Kontrolle", icon=":material/monitoring:"),
+    ],
+    "Experiment": [st.Page("pages/ki_lab.py", title="KI-Lab", icon=":material/science:")],
+    "Info": [
+        st.Page("pages/ueber_uns.py", title="Über uns", icon=":material/groups:"),
+        st.Page("pages/impressum.py", title="Impressum", icon=":material/gavel:"),
+    ],
+}
+page = st.navigation(MENU)
+section = next(name for name, pages in MENU.items() if page.url_path in [p.url_path for p in pages])
 
-name, logo_slot = st.columns([5, 1], vertical_alignment="center")
-name.title("PM-Agent")
-# The group has no logo yet. Put a file here and it shows; nothing is drawn without one.
-logo = next(
-    (p for p in (ROOT / "assets" / "logo.svg", ROOT / "assets" / "logo.png") if p.exists()), None
-)
-if logo:
-    logo_slot.image(str(logo), width=120)
+st.html(ROOT / "assets" / "style.css")
+with st.container(
+    key="topbar", horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"
+):
+    st.html(
+        '<div class="brand">PM-AGENT<small>KI IM PROJEKTMANAGEMENT</small></div>', width="content"
+    )
+    # The group has no logo yet. Put a file here and it shows; without one the bar says what
+    # the site is.
+    logo = next(
+        (p for p in (ROOT / "assets" / "logo.svg", ROOT / "assets" / "logo.png") if p.exists()),
+        None,
+    )
+    if logo:
+        st.image(str(logo), width=120)
+    else:
+        st.html('<span class="badge">PROTOTYP · HSBI PROJEKTGRUPPE 4</span>', width="content")
 
 # The Planung page restores its table editors after a visit to another page.
 state.page_changed = state.get("page") != page.url_path
 state.page = page.url_path
-page.run()
+# A container of its own per page: a page change mounts new content, which is what the
+# page transition in assets/style.css hangs on.
+with st.container(key=f"page-{page.url_path or 'startseite'}"):
+    if section:
+        st.html(f'<p class="eyebrow">{section}</p>')
+    page.run()

@@ -1,0 +1,300 @@
+/* Look of the site on top of the Streamlit theme (.streamlit/config.toml): emphasis, cards,
+   buttons and motion. Shapes and colours follow the KI-Lab (../ki_lab/web/style.css).
+   Loaded once per run by app.py. Containers are addressed by their Streamlit key
+   (st.container(key="hero") gets the class st-key-hero). */
+
+:root {
+  --ink: #18352d;
+  --muted: #64736c;
+  --green: #23654c;
+  --green-dark: #174b38;
+  --mint: #dceadf;
+  --sage: #e7eddf;
+  --line: #dbe0d6;
+  --line-strong: #90ad9a;
+  --focus: #ba8d42;
+  --lift: 0 12px 26px -16px rgba(24, 53, 45, 0.5);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Motion ---------------------------------------------------------------------------- */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* One node of the hero diagram after the other lights up: propose, check, decide. */
+@keyframes step {
+  0%, 28%, 100% { background: #f8faf3; border-color: #b7c9b2; box-shadow: none; }
+  6%, 22% { background: #fff; border-color: var(--green); box-shadow: var(--lift); }
+}
+
+/* app.py wraps every page in a container with its own key. A page change mounts new
+   content, so this runs once per page change and not on every rerun. */
+[class*="st-key-page-"] { animation: rise 0.4s var(--ease) both; }
+.st-key-agents { animation: rise 0.5s var(--ease) 0.08s both; }
+.st-key-lab { animation: rise 0.5s var(--ease) 0.16s both; }
+.st-key-project { animation: rise 0.5s var(--ease) 0.24s both; }
+[data-testid="stTabPanel"] { animation: fade 0.3s ease-out both; }
+
+/* ---- Top bar --------------------------------------------------------------------------- */
+
+.st-key-topbar {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 6px;
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 2px;
+}
+.brand small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
+.badge {
+  border: 1px solid #bdcbb8;
+  background: #e5ecdf;
+  border-radius: 20px;
+  padding: 4px 10px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* ---- Type ------------------------------------------------------------------------------ */
+
+.eyebrow {
+  margin: 0;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.lead {
+  max-width: 560px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+[data-testid="stHeading"] h1 {
+  padding-top: 0;
+  font-size: clamp(32px, 3.6vw, 54px);
+  font-weight: 550;
+  letter-spacing: -2px;
+  line-height: 1.12;
+}
+[data-testid="stHeading"] h1 em {
+  color: #5b795e;
+  font-family: Georgia, serif;
+  font-weight: normal;
+}
+[data-testid="stHeading"] h2 {
+  padding-top: 0;
+  font-size: 32px;
+  letter-spacing: -1px;
+}
+[data-testid="stHeading"] h3 {
+  font-size: 21px;
+  letter-spacing: -0.5px;
+}
+
+/* ---- Buttons --------------------------------------------------------------------------- */
+
+.stButton > button,
+.stDownloadButton > button,
+.stFormSubmitButton > button,
+.stLinkButton > a {
+  font-weight: 600;
+  transition:
+    transform 0.15s var(--ease),
+    box-shadow 0.15s var(--ease),
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.stButton > button:hover:not(:disabled),
+.stDownloadButton > button:hover:not(:disabled),
+.stFormSubmitButton > button:hover:not(:disabled),
+.stLinkButton > a:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--lift);
+  transform: translateY(-1px);
+}
+.stButton > button:active:not(:disabled),
+.stDownloadButton > button:active:not(:disabled),
+.stFormSubmitButton > button:active:not(:disabled),
+.stLinkButton > a:active {
+  box-shadow: none;
+  transform: none;
+}
+.stButton > button[kind="primary"]:hover:not(:disabled),
+.stFormSubmitButton > button[kind="primaryFormSubmit"]:hover:not(:disabled) {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+}
+.stApp button:focus-visible,
+.stApp a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ---- Hero (Startseite) ----------------------------------------------------------------- */
+
+.st-key-hero { padding: 26px 0 18px; }
+.flow {
+  border: 1px solid #c9d5c3;
+  background: var(--sage);
+  border-radius: 16px;
+  padding: 28px;
+}
+.flow-top {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.flow-nodes {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 24px 0;
+}
+.flow-node {
+  flex: 1;
+  border: 1px solid #b7c9b2;
+  background: #f8faf3;
+  border-radius: 9px;
+  padding: 16px;
+  color: var(--ink);
+  font-size: 13px;
+  animation: step 7.5s ease-in-out infinite;
+}
+.flow-node:nth-child(2) { animation-delay: 2.5s; }
+.flow-node:nth-child(3) { animation-delay: 5s; }
+.flow-node strong {
+  display: block;
+  font: normal 23px Georgia, serif;
+}
+.flow-result {
+  border-top: 1px solid #cad7c3;
+  padding-top: 16px;
+  color: var(--green);
+  font-size: 12px;
+}
+
+/* ---- Cards ----------------------------------------------------------------------------- */
+
+[class*="st-key-card-"] {
+  background: #fff;
+  border-radius: 12px;
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.2s var(--ease),
+    border-color 0.2s;
+}
+[class*="st-key-card-"]:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--lift);
+  transform: translateY(-4px);
+}
+.st-key-card-lab { background: var(--sage); }
+.card-number {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+[class*="st-key-card-"] [data-testid="stPageLink-NavLink"] {
+  color: var(--green);
+  font-weight: 600;
+}
+[class*="st-key-card-"] [data-testid="stPageLink-NavLink"] p { font-weight: 600; }
+/* The arrow moves towards the page the card opens. */
+[class*="st-key-card-"] [data-testid="stPageLink-NavLink"] [data-testid="stIconMaterial"] {
+  transition: transform 0.2s var(--ease);
+}
+[class*="st-key-card-"]:hover [data-testid="stPageLink-NavLink"] [data-testid="stIconMaterial"] {
+  transform: translateX(4px);
+}
+
+/* ---- Numbers --------------------------------------------------------------------------- */
+
+[data-testid="stMetric"] {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition:
+    box-shadow 0.2s var(--ease),
+    border-color 0.2s;
+}
+[data-testid="stMetric"]:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--lift);
+}
+[data-testid="stMetricValue"] {
+  font-weight: 500;
+  letter-spacing: -1px;
+}
+
+/* ---- Tabs: the six steps of the Planung page ------------------------------------------- */
+
+.stTabs [role="tablist"] {
+  gap: 6px;
+  height: auto;
+  padding-bottom: 10px;
+}
+/* The selected step is a filled pill, so the sliding underline goes. */
+.stTabs [role="tablist"]::before { display: none; }
+.stTabs [data-testid="stTab"] {
+  height: auto;
+  border-radius: 8px;
+  padding: 8px 14px;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.stTabs [data-testid="stTab"]:hover { background: #edf3ed; }
+.stTabs [data-testid="stTab"][aria-selected="true"] {
+  background: var(--mint);
+  color: #244e38;
+}
+.stTabs [data-testid="stTab"][aria-selected="true"] p { font-weight: 650; }
+
+/* ---- Menu and messages ----------------------------------------------------------------- */
+
+[data-testid="stSidebarNavLink"] {
+  transition:
+    background-color 0.15s,
+    transform 0.15s var(--ease);
+}
+[data-testid="stSidebarNavLink"]:hover { transform: translateX(3px); }
+[data-testid="stAlertContainer"] {
+  border-left: 3px solid currentColor;
+  border-radius: 6px;
+}
+
+/* People who asked their system for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  .stApp *,
+  .stApp *::before,
+  .stApp *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
