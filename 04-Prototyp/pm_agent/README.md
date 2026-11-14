@@ -14,6 +14,10 @@ cd 04-Prototyp/pm_agent
 uv run --env-file .env streamlit run app.py
 ```
 
+Die Oberfläche ist nur auf diesem Rechner erreichbar (`http://localhost:8501`), siehe
+`.streamlit/config.toml`. Sonst könnte jeder im selben Netz Planungen auf Kosten des
+API-Schlüssels starten. Deshalb im Ordner `04-Prototyp/pm_agent` starten.
+
 Sechs Schritte als Reiter:
 
 1. **Team**: Personen mit Skills (z. B. `Python 4, SQL 3`) und Wochenstunden; lokal speichern
