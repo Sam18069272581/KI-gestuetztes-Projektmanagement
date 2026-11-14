@@ -86,7 +86,7 @@ class Evaluation:
         return [t for t in self.tasks if t.overdue]
 
 
-def adopt(project: Project, team: list[Member], plan: Plan, path: Path = PROJECT_FILE) -> Tracking:
+def adopt(project: Project, team: list[Member], plan: Plan, path: Path | None = None) -> Tracking:
     """Make the plan the baseline. Replaces an adopted project and its progress."""
     errors = check_plan(plan, team, project).errors
     if errors:
@@ -102,8 +102,9 @@ def adopt(project: Project, team: list[Member], plan: Plan, path: Path = PROJECT
     return tracking
 
 
-def load(path: Path = PROJECT_FILE) -> Tracking | None:
+def load(path: Path | None = None) -> Tracking | None:
     """None if no plan was adopted yet. A damaged file is an error, not an empty project."""
+    path = path or PROJECT_FILE
     if not path.exists():
         return None
     try:
@@ -112,9 +113,15 @@ def load(path: Path = PROJECT_FILE) -> Tracking | None:
         raise InputError(f"{path.name} ist beschädigt: {_reason(err)}") from err
 
 
-def save(tracking: Tracking, path: Path = PROJECT_FILE) -> None:
+def save(tracking: Tracking, path: Path | None = None) -> None:
+    path = path or PROJECT_FILE  # read at call time: tests point it to a temporary folder
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(tracking.model_dump_json(indent=2), encoding="utf-8")
+
+
+def percent(share: float) -> str:
+    """0.333 -> "33 %", the German way."""
+    return f"{share:.0%}".replace("%", " %")
 
 
 def has_progress(tracking: Tracking) -> bool:
@@ -224,7 +231,7 @@ def status_report(tracking: Tracking, evaluation: Evaluation) -> str:
         start=_date(project.start_date),
         deadline=_date(project.deadline),
         planende=_date(max(t.planned_end for t in tasks)),
-        fortschritt=f"{evaluation.progress:.0%}".replace("%", " %"),
+        fortschritt=percent(evaluation.progress),
         fertig=count["fertig"],
         in_arbeit=count["in Arbeit"],
         offen=count["offen"],
@@ -276,11 +283,11 @@ def work_packages(tracking: Tracking) -> str:
     )
 
 
-def agent_runs(log_dir: Path = LOG_DIR) -> list[dict[str, Any]]:
+def agent_runs(log_dir: Path | None = None) -> list[dict[str, Any]]:
     """What every logged planning run cost in time and tokens, newest first. Failed runs
     count too: they also took time and tokens."""
     runs = []
-    for path in sorted(log_dir.glob("run-*.json"), reverse=True):
+    for path in sorted((log_dir or LOG_DIR).glob("run-*.json"), reverse=True):
         record = json.loads(path.read_text(encoding="utf-8"))
         usages = [r.get("usage", {}) for r in record.get("rounds", [])]
         runs.append(
