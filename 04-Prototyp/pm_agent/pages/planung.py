@@ -7,7 +7,7 @@ session state and restored when the user comes back (see restore_editors).
 """
 
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import altair as alt
 import pandas as pd
@@ -27,6 +27,7 @@ from pm_agent.workbench import (
     TEAM_FILE,
     InputError,
     append_run,
+    gantt,
     load_run,
     load_team,
     plan_rows,
@@ -271,21 +272,9 @@ with tabs[3]:
         for warning in result.warnings:
             st.warning(warning)
         if result.schedule:
-            titles = {t.id: t.title for t in state.plan.tasks}
-            gantt = pd.DataFrame(
-                [
-                    {
-                        "Aufgabe": f"{s.task_id} · {titles[s.task_id]}",
-                        "Person": s.member,
-                        "Start": s.start,
-                        "Ende": s.end + timedelta(days=1),
-                        "Zeitraum": f"{s.start:%d.%m.} – {s.end:%d.%m.}",
-                    }
-                    for s in result.schedule
-                ]
-            )
+            bars, deadline_line = gantt(state.plan, result, project.deadline)
             chart = (
-                alt.Chart(gantt)
+                alt.Chart(pd.DataFrame(bars))
                 .mark_bar()
                 .encode(
                     x=alt.X("Start:T", title=None),
@@ -296,7 +285,7 @@ with tabs[3]:
                 )
             )
             deadline_rule = (
-                alt.Chart(pd.DataFrame({"Deadline": [project.deadline]}))
+                alt.Chart(pd.DataFrame({"Deadline": [deadline_line]}))
                 .mark_rule(strokeDash=[4, 4])
                 .encode(x="Deadline:T")
             )
