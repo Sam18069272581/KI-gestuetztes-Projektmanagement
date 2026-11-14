@@ -1,5 +1,6 @@
 """The Streamlit app headless, with the agent replaced: no network, no files in data/ or logs/."""
 
+import tomllib
 from datetime import date
 from pathlib import Path
 
@@ -98,3 +99,9 @@ def test_a_deadline_before_the_start_is_explained(app):
     app.date_input(key="deadline").set_value(date(2026, 11, 1))
     at = app.run()
     assert [e.value for e in at.error] == ["Die Deadline liegt vor dem Startdatum"]
+
+
+def test_the_server_listens_only_on_this_computer():
+    # With the API key loaded, anyone who can reach the port can start paid runs.
+    config = tomllib.loads((Path(APP).parent / ".streamlit" / "config.toml").read_text("utf-8"))
+    assert config["server"]["address"] == "localhost"
