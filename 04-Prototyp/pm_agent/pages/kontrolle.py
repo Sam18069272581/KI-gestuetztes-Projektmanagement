@@ -6,14 +6,16 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from pm_agent import workbench
+from pm_agent import followup, workbench
 from pm_agent.tracking import agent_runs, evaluate, has_progress, percent
-from pm_agent.ui import adopted_project
+from pm_agent.ui import adopted_project, consent, run_with_progress
+
+state = st.session_state
 
 st.header("Kontrolle")
 st.caption(
-    "Plan und Ist im Vergleich. Alle Zahlen kommen aus dem übernommenen Plan, dem erfassten "
-    "Fortschritt und den Protokollen; es wird kein LLM aufgerufen."
+    "Plan und Ist im Vergleich, mit einer Bewertung von Claude. Alle Zahlen rechnet Python aus "
+    "dem übernommenen Plan, dem erfassten Fortschritt und den Protokollen."
 )
 
 st.subheader("Projektstand")
@@ -86,7 +88,49 @@ if tracking is not None:
     else:
         st.caption("Ohne Stundensatz werden keine Kosten berechnet.")
 
-st.subheader("Aufwand des Planungsagenten")
+    st.subheader("Kontroll-Agent")
+    st.caption(
+        "Claude bewertet den Stand und schlägt Gegenmaßnahmen vor. Python nimmt den Vorschlag nur "
+        "an, wenn jede Aufgabe im Verzug eine Gegenmaßnahme hat. Was umgesetzt wird, entscheidest "
+        "du."
+    )
+    agreed = consent("consent_kontrolle")
+    if st.button("Stand mit Claude bewerten", disabled=not agreed):
+        proposed = run_with_progress(
+            "Claude bewertet den Stand …",
+            lambda on_round: followup.run_control_report(tracking, date.today(), on_round=on_round),
+        )
+        if proposed is not None:
+            state.control_report = (tracking, proposed)
+    if "control_report" in state:
+        basis, report = state.control_report
+        if basis != tracking:
+            st.info("Der Fortschritt hat sich seit der Bewertung geändert. Lass sie neu erstellen.")
+        else:
+            st.metric("Bewertung", report.assessment)
+            st.markdown("**Feststellungen**")
+            for finding in report.findings:
+                where = f"**{', '.join(finding.task_ids)}:** " if finding.task_ids else ""
+                st.markdown(f"- {where}{finding.observation}")
+            st.markdown("**Gegenmaßnahmen**")
+            if report.measures:
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Aufgaben": ", ".join(m.task_ids),
+                                "Maßnahme": m.action,
+                                "Erwartete Wirkung": m.effect,
+                            }
+                            for m in report.measures
+                        ]
+                    ),
+                    hide_index=True,
+                )
+            else:
+                st.caption("Claude schlägt keine Gegenmaßnahmen vor.")
+
+st.subheader("Aufwand der Agenten")
 try:
     runs = agent_runs()
 except ValueError as err:  # a damaged log file
@@ -95,8 +139,8 @@ except ValueError as err:  # a damaged log file
 if runs:
     st.dataframe(pd.DataFrame(runs), hide_index=True)
     st.caption(
-        "Ein Lauf ist ein Aufruf von „Plan mit Claude erstellen“. Token-Kosten in Euro werden "
-        "nicht berechnet: Preise sind in der Anwendung nicht hinterlegt."
+        "Ein Lauf ist ein Aufruf eines der drei Agenten. Token-Kosten in Euro werden nicht "
+        "berechnet: Preise sind in der Anwendung nicht hinterlegt."
     )
 else:
     st.caption("Noch keine protokollierten Läufe.")

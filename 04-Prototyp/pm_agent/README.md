@@ -5,8 +5,9 @@ Planungsphase von Softwareprojekten: Aufgaben zerlegen, Aufwand schätzen, nach 
 Verfügbarkeit zuweisen, Terminplan und Risiken ableiten. Die Projektleitung prüft und
 entscheidet.
 
-Stand: Planung mit Claude und deterministischer Prüfung; Durchführung und Kontrolle als erste
-Fassung ohne LLM; das KI-Lab (Vergleichsexperiment, `../ki_lab`) ist eingebettet.
+Stand: Planung mit Claude und deterministischer Prüfung; für Durchführung und Kontrolle steht
+je ein Agent als Gerüst (ein Werkzeug, eine Prüfung), bisher nur offline getestet; das KI-Lab
+(Vergleichsexperiment, `../ki_lab`) ist eingebettet.
 
 ## Oberfläche
 
@@ -25,12 +26,12 @@ Das Menü links:
 |---|---|
 | Startseite | Überblick und Stand des übernommenen Projekts |
 | Agenten · Planung | Plan mit Claude erstellen, prüfen, anpassen, exportieren, als Projekt übernehmen |
-| Agenten · Durchführung | Status und Ist-Stunden je Aufgabe erfassen; Statusbericht und Arbeitspaketbeschreibungen aus Vorlagen (`src/pm_agent/templates`) |
-| Agenten · Kontrolle | Plan/Ist-Vergleich, Verzug, Kosten bei gesetztem Stundensatz, Zeit und Token der Planungsläufe |
+| Agenten · Durchführung | Status und Ist-Stunden je Aufgabe erfassen; Claude schlägt Zusammenfassung und nächste Schritte vor; Statusbericht und Arbeitspaketbeschreibungen aus Vorlagen (`src/pm_agent/templates`) |
+| Agenten · Kontrolle | Plan/Ist-Vergleich, Verzug, Kosten bei gesetztem Stundensatz; Claude bewertet den Stand und schlägt Gegenmaßnahmen vor; Zeit und Token aller Agentenläufe |
 | KI-Lab | startet den Studienserver aus `../ki_lab` und zeigt ihn eingebettet |
 | Über uns, Impressum | Projektkontext; Impressumsangaben trägt das Team noch ein |
 
-Durchführung und Kontrolle rechnen nur mit dem übernommenen Plan (`data/projekt.json`) und dem
+Durchführung und Kontrolle rechnen mit dem übernommenen Plan (`data/projekt.json`) und dem
 erfassten Fortschritt. Ein Logo erscheint oben rechts, sobald `assets/logo.svg` oder
 `assets/logo.png` existiert.
 
@@ -52,14 +53,24 @@ Sechs Schritte als Reiter:
    vermerkt, als Datengrundlage für den Vorher-nachher-Vergleich. Ein Plan ohne Fehler lässt
    sich hier als Projekt übernehmen.
 
-## Agent
+## Agenten
 
-`run_planning(project, team)` in `src/pm_agent/agent.py`: Claude entwirft den Plan, prüft ihn
-mit dem Werkzeug `check_plan` (die deterministische Prüfung) und korrigiert ihn, bis
-`submit_plan` ihn ohne Fehler annimmt. Warnungen (Überlastung, Deadline, fehlende Skills)
-bleiben für die Projektleitung stehen. Liegt nach 10 Runden kein gültiger Plan vor, hört Claude
-ohne Plan auf oder wird eine Antwort abgeschnitten oder abgelehnt, bricht der Agent mit einer
-`PlanningError` ab.
+Alle drei Agenten laufen in derselben Schleife (`run_agent` in `src/pm_agent/agent.py`): Claude
+entwirft ein Ergebnis, ein Werkzeug prüft es deterministisch, Claude korrigiert, bis das
+Einreichen-Werkzeug es annimmt. Liegt nach 10 Runden kein gültiges Ergebnis vor, hört Claude
+ohne Ergebnis auf oder wird eine Antwort abgeschnitten oder abgelehnt, bricht der Agent mit
+einer `AgentError` ab. Jeder Lauf wird in `logs/` protokolliert.
+
+| Agent | Aufruf | Werkzeuge | Die Prüfung verlangt |
+|---|---|---|---|
+| Planung | `run_planning(project, team)` | `check_plan`, `submit_plan` | einen Plan ohne Fehler; Warnungen (Überlastung, Deadline, fehlende Skills) bleiben für die Projektleitung stehen |
+| Durchführung | `run_status_summary(tracking, today)` in `followup.py` | `submit_status` | einen nächsten Schritt für jede Aufgabe im Verzug, keinen für fertige Aufgaben |
+| Kontrolle | `run_control_report(tracking, today)` in `followup.py` | `submit_control` | eine Gegenmaßnahme für jede Aufgabe im Verzug; bei Verzug nicht die Bewertung „im Plan“ |
+
+Die Agenten für Durchführung und Kontrolle bekommen die fertig berechneten Kennzahlen und
+rechnen nicht selbst. Sie sind ein Gerüst: Weitere Werkzeuge (zum Beispiel eine
+Umplanung zum Durchrechnen) kommen in `followup.py` neben das Einreichen-Werkzeug. Gegen die
+echte API sind beide noch nicht gelaufen.
 
 Zugang: `.env.example` nach `.env` kopieren und `ANTHROPIC_API_KEY` eintragen. Das Modell
 lässt sich mit `PM_AGENT_MODEL` ändern (Standard `claude-opus-5-5`).

@@ -16,7 +16,7 @@ from typing import Any, Literal, get_args
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from pm_agent.agent import LOG_DIR
-from pm_agent.models import Member, Plan, Project
+from pm_agent.models import Member, Plan, Project, StatusSummary
 from pm_agent.planning import check_plan
 from pm_agent.workbench import DATA_DIR, InputError, _cell, _date, _md, _reason
 
@@ -25,6 +25,8 @@ TEMPLATES = Path(__file__).parent / "templates"
 
 Status = Literal["offen", "in Arbeit", "fertig"]
 STATUSES = list(get_args(Status))
+# Log file prefix of each agent (agent.run_agent) and its name in the UI.
+AGENTS = {"run": "Planung", "durchfuehrung": "Durchführung", "kontrolle": "Kontrolle"}
 PROGRESS_COLUMNS = [
     "ID",
     "Aufgabe",
@@ -217,8 +219,20 @@ def progress_rows(tracking: Tracking) -> list[dict[str, Any]]:
     ]
 
 
-def status_report(tracking: Tracking, evaluation: Evaluation) -> str:
+def status_report(
+    tracking: Tracking, evaluation: Evaluation, summary: StatusSummary | None = None
+) -> str:
+    """The status report. `summary` is the text part the Durchführung agent proposed."""
     project, tasks = tracking.project, evaluation.tasks
+    if summary is None:
+        text = (
+            "Noch nicht erstellt. Der Durchführungs-Agent schlägt sie auf der Seite "
+            "Durchführung vor."
+        )
+    else:
+        steps = "\n".join(f"- **{step.task_id}:** {step.action}" for step in summary.next_steps)
+        note = "*Vorschlag des Durchführungs-Agenten (Claude), von der Projektleitung zu prüfen.*"
+        text = "\n\n".join(filter(None, [summary.summary, steps, note]))
     count = {status: sum(t.status == status for t in tasks) for status in STATUSES}
     overdue = [
         f"- {t.id} · {t.title} ({t.member}), geplant bis {_date(t.planned_end)}, Status: {t.status}"
@@ -238,6 +252,7 @@ def status_report(tracking: Tracking, evaluation: Evaluation) -> str:
         plan_h=f"{evaluation.planned_hours:g}",
         ist_h=f"{evaluation.actual_hours:g}",
         abweichung=f"{evaluation.finished_deviation:+g}",
+        zusammenfassung=text,
         verzug="\n".join(overdue) or "Keine Aufgabe im Verzug.",
         aufgaben="\n".join(
             f"| {t.id} | {_md(t.title)} | {t.member} | {t.status} | {t.planned_hours:g} | "
@@ -284,16 +299,23 @@ def work_packages(tracking: Tracking) -> str:
 
 
 def agent_runs(log_dir: Path | None = None) -> list[dict[str, Any]]:
-    """What every logged planning run cost in time and tokens, newest first. Failed runs
-    count too: they also took time and tokens."""
+    """What every logged agent run cost in time and tokens, newest first. Failed runs count
+    too: they also took time and tokens."""
+    paths = [
+        (path.name.removeprefix(f"{prefix}-"), agent, path)
+        for prefix, agent in AGENTS.items()
+        for path in (log_dir or LOG_DIR).glob(f"{prefix}-*.json")
+    ]
     runs = []
-    for path in sorted((log_dir or LOG_DIR).glob("run-*.json"), reverse=True):
+    for _, agent, path in sorted(paths, key=lambda item: item[0], reverse=True):
         record = json.loads(path.read_text(encoding="utf-8"))
         usages = [r.get("usage", {}) for r in record.get("rounds", [])]
+        outcome = record.get("outcome", "error")
         runs.append(
             {
                 "Lauf": path.name,
-                "Ergebnis": "Plan" if record.get("outcome") == "plan" else "Fehler",
+                "Agent": agent,
+                "Ergebnis": "Fehler" if outcome == "error" else outcome.capitalize(),
                 "Dauer (s)": record.get("seconds"),
                 "Runden": len(usages),
                 # Cached parts of the history are input too; the API reports them separately.

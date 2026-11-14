@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 from test_tools import PROJECT, TEAM, plan_input
 
-from pm_agent.models import Plan
+from pm_agent.models import Plan, StatusSummary
 from pm_agent.tracking import (
     adopt,
     agent_runs,
@@ -126,6 +126,19 @@ def test_the_status_report_is_filled_from_plan_and_progress(tracking):
 def test_a_status_report_without_overdue_tasks_says_so(tracking):
     report = status_report(tracking, evaluate(tracking, today=date(2026, 11, 9)))
     assert "Keine Aufgabe im Verzug." in report
+    assert "Noch nicht erstellt. Der Durchführungs-Agent" in report
+
+
+def test_the_agents_summary_goes_into_the_status_report_marked_as_a_proposal(tracking):
+    summary = StatusSummary(
+        summary="A ist fertig, B ist im Verzug.",
+        next_steps=[{"task_id": "B", "action": "Anna schließt die API bis Freitag ab."}],
+    )
+    report = status_report(tracking, evaluate(tracking, today=date(2026, 11, 12)), summary)
+
+    assert "A ist fertig, B ist im Verzug.\n\n- **B:** Anna schließt die API" in report
+    assert "*Vorschlag des Durchführungs-Agenten (Claude)" in report
+    assert "Noch nicht erstellt" not in report
 
 
 def test_work_packages_describe_every_task(tracking):
@@ -140,7 +153,7 @@ def test_work_packages_describe_every_task(tracking):
     assert "$" not in text
 
 
-def test_agent_runs_list_time_rounds_and_tokens_of_every_logged_run(tmp_path):
+def test_agent_runs_list_time_rounds_and_tokens_of_every_agent(tmp_path):
     usage = {"input_tokens": 1200, "output_tokens": 300, "cache_read_input_tokens": 500}
     (tmp_path / "run-20261111-124944.json").write_text(
         json.dumps(
@@ -157,10 +170,24 @@ def test_agent_runs_list_time_rounds_and_tokens_of_every_logged_run(tmp_path):
         json.dumps({"started": "2026-11-11T12:43:30+01:00", "seconds": 0.4, "outcome": "error"}),
         encoding="utf-8",
     )
+    (tmp_path / "kontrolle-20261112-090000.json").write_text(
+        json.dumps({"seconds": 20.5, "outcome": "kontrollbericht", "rounds": [{"usage": usage}]}),
+        encoding="utf-8",
+    )
 
     assert agent_runs(tmp_path) == [
         {
+            "Lauf": "kontrolle-20261112-090000.json",
+            "Agent": "Kontrolle",
+            "Ergebnis": "Kontrollbericht",
+            "Dauer (s)": 20.5,
+            "Runden": 1,
+            "Eingabe-Token": 1700,
+            "Ausgabe-Token": 300,
+        },
+        {
             "Lauf": "run-20261111-124944.json",
+            "Agent": "Planung",
             "Ergebnis": "Plan",
             "Dauer (s)": 184.2,
             "Runden": 2,
@@ -169,6 +196,7 @@ def test_agent_runs_list_time_rounds_and_tokens_of_every_logged_run(tmp_path):
         },
         {
             "Lauf": "run-20261111-124330.json",
+            "Agent": "Planung",
             "Ergebnis": "Fehler",
             "Dauer (s)": 0.4,
             "Runden": 0,

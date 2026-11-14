@@ -10,9 +10,9 @@ import pytest
 from streamlit.testing.v1 import AppTest
 from test_tools import PROJECT, TEAM, plan_input
 
-from pm_agent import agent, lab_server, tracking, workbench
-from pm_agent.agent import PlanningError
-from pm_agent.models import Plan
+from pm_agent import agent, followup, lab_server, tracking, workbench
+from pm_agent.agent import AgentError, PlanningError
+from pm_agent.models import ControlReport, Plan, StatusSummary
 
 SITE = Path(__file__).parents[1] / "app.py"
 PLANUNG = "pages/planung.py"
@@ -221,3 +221,84 @@ def test_a_plan_with_errors_cannot_be_adopted(app, monkeypatch):
 
     assert button(at, "Plan als Projekt übernehmen").disabled
     assert tracking.load() is None
+
+
+@pytest.fixture
+def tracked(site):
+    """The site with an adopted project (in the temporary folder of `local`)."""
+    tracking.adopt(PROJECT, TEAM, PLAN)
+    return site
+
+
+def test_the_execution_agent_needs_consent_and_its_proposal_goes_into_the_report(
+    tracked, monkeypatch
+):
+    summary = StatusSummary(
+        summary="Beide Aufgaben sind im Verzug.",
+        next_steps=[{"task_id": "A", "action": "Anna klärt das Schema bis Montag."}],
+    )
+
+    def proposing(adopted, today, on_round=None):
+        assert adopted.plan == PLAN
+        accepted = {"tool": "submit_status", "is_error": False, "content": "angenommen."}
+        on_round({"tool_results": [accepted]})
+        return summary
+
+    monkeypatch.setattr(followup, "run_status_summary", proposing)
+    at = tracked.switch_page("pages/durchfuehrung.py").run()
+    start = "Zusammenfassung mit Claude vorschlagen"
+    assert button(at, start).disabled
+    assert any("Noch nicht erstellt. Der Durchführungs-Agent" in m.value for m in at.markdown)
+
+    at.checkbox(key="consent_durchfuehrung").check()
+    at.run()
+    button(at, start).click()
+    at.run()
+
+    assert not at.exception and not at.error
+    texts = [m.value for m in at.markdown]
+    assert "Beide Aufgaben sind im Verzug." in texts
+    assert "- **A:** Anna klärt das Schema bis Montag." in texts
+    assert any("*Vorschlag des Durchführungs-Agenten (Claude)" in t for t in texts)
+
+
+def test_the_control_agent_shows_assessment_findings_and_measures(tracked, monkeypatch):
+    report = ControlReport(
+        assessment="gefährdet",
+        findings=[{"task_ids": ["B"], "observation": "B hat noch nicht begonnen."}],
+        measures=[{"task_ids": ["B"], "action": "Anna beginnt B.", "effect": "Verzug sinkt."}],
+    )
+    monkeypatch.setattr(followup, "run_control_report", lambda *args, **kwargs: report)
+    at = tracked.switch_page("pages/kontrolle.py").run()
+    assert button(at, "Stand mit Claude bewerten").disabled
+
+    at.checkbox(key="consent_kontrolle").check()
+    at.run()
+    button(at, "Stand mit Claude bewerten").click()
+    at.run()
+
+    assert not at.exception and not at.error
+    assert {m.label: m.value for m in at.metric}["Bewertung"] == "gefährdet"
+    assert "- **B:** B hat noch nicht begonnen." in [m.value for m in at.markdown]
+    (measures,) = [d.value for d in at.dataframe if "Maßnahme" in d.value.columns]
+    assert measures.to_dict("records") == [
+        {"Aufgaben": "B", "Maßnahme": "Anna beginnt B.", "Erwartete Wirkung": "Verzug sinkt."}
+    ]
+
+
+def test_a_failing_agent_shows_the_reason_and_no_result(tracked, monkeypatch):
+    def failing(adopted, today, on_round=None):
+        raise AgentError("Kein Zugang zur Claude API: ANTHROPIC_API_KEY ist nicht gesetzt.")
+
+    monkeypatch.setattr(followup, "run_control_report", failing)
+    at = tracked.switch_page("pages/kontrolle.py").run()
+    at.checkbox(key="consent_kontrolle").check()
+    at.run()
+    button(at, "Stand mit Claude bewerten").click()
+    at.run()
+
+    assert not at.exception
+    assert [e.value for e in at.error] == [
+        "Kein Zugang zur Claude API: ANTHROPIC_API_KEY ist nicht gesetzt."
+    ]
+    assert "Bewertung" not in {m.label for m in at.metric}

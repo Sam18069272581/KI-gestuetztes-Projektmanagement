@@ -13,6 +13,10 @@
 - Ist-Stunden bisher: $ist_h h
 - Abweichung der fertigen Aufgaben: $abweichung h
 
+## Zusammenfassung und nächste Schritte
+
+$zusammenfassung
+
 ## Im Verzug
 
 $verzug
