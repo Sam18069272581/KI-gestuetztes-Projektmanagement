@@ -99,6 +99,33 @@ def test_a_plan_from_the_agent_is_checked_shown_and_exported(app, monkeypatch):
     assert "angepasst" not in " ".join(c.value for c in at.caption)
 
 
+def chips(at):
+    """The status strip above the steps, as plain text."""
+    (strip,) = [h.value for h in at.html if 'class="chips"' in h.value]
+    return strip
+
+
+def test_the_status_strip_says_what_the_planning_still_needs(app, monkeypatch):
+    for text in ["✓ Team: 1 Person<", "○ Zustimmung<", "○ Projekt<", "○ Plan offen<"]:
+        assert text in chips(app)
+
+    monkeypatch.setattr(agent, "run_planning", planned)
+    at = fill_project(app)
+    button(at, "Plan mit Claude erstellen").click()
+    at.run()
+
+    for text in ["✓ Zustimmung<", "✓ Projekt<", "✓ Plan geprüft, 1 Warnung<"]:
+        assert text in chips(at)
+
+
+def test_the_buttons_at_the_end_of_a_step_open_the_next_step(app):
+    assert not button(app, "Weiter zum Projekt").disabled
+    button(app, "Weiter zum Projekt").click()
+    at = app.run()
+    assert not at.exception
+    assert at.session_state["step"] == "2 · Projekt"
+
+
 def test_an_agent_error_is_shown_to_the_project_lead(app, monkeypatch):
     def failing_run(project, team, on_round=None):
         raise PlanningError("Kein Zugang zur Claude API: ANTHROPIC_API_KEY ist nicht gesetzt.")
