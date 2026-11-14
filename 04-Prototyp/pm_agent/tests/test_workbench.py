@@ -11,6 +11,7 @@ from pm_agent.planning import check_plan
 from pm_agent.workbench import (
     InputError,
     append_run,
+    gantt,
     load_run,
     load_team,
     plan_rows,
@@ -167,3 +168,26 @@ def test_export_contains_dates_reasons_and_warnings():
     assert rows[0][-3:] == ["Start", "Ende", "Begründung"]
     assert rows[2][:3] == ["B", "API", "Anna"] and rows[2][-3:-1] == ["10.11.2026", "11.11.2026"]
     assert result.end_date == date(2026, 11, 11)
+
+
+def test_a_task_that_ends_on_the_deadline_does_not_cross_the_deadline_line():
+    # The plan ends on Wed 11.11. With that day as the deadline the plan is on time (not
+    # reported as late), so no bar may reach beyond the line.
+    on_the_day = PROJECT.model_copy(update={"deadline": date(2026, 11, 11)})
+    result = check_plan(PLAN, TEAM, on_the_day)
+    assert result.end_date == on_the_day.deadline
+    assert not any("nach der Deadline" in w for w in result.warnings)
+
+    bars, line = gantt(PLAN, result, on_the_day.deadline)
+
+    assert [(b["Aufgabe"], b["Zeitraum"]) for b in bars] == [
+        ("A · Datenmodell", "09.11. – 09.11."),
+        ("B · API", "10.11. – 11.11."),
+    ]
+    assert max(b["Ende"] for b in bars) <= line
+
+
+def test_a_task_that_ends_after_the_deadline_crosses_the_line():
+    result = check_plan(PLAN, TEAM, PROJECT.model_copy(update={"deadline": date(2026, 11, 10)}))
+    bars, line = gantt(PLAN, result, date(2026, 11, 10))
+    assert max(b["Ende"] for b in bars) > line

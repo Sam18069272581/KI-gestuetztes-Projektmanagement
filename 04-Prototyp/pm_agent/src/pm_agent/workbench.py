@@ -9,6 +9,7 @@ import csv
 import io
 import json
 import re
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -173,7 +174,8 @@ def round_summary(number: int, record: dict[str, Any]) -> tuple[str, list[str]]:
     for result in record.get("tool_results", []):
         tool, content = result["tool"], result["content"]
         if result["is_error"]:
-            parts.append(f"{tool}: abgelehnt" if tool == "submit_plan" else f"{tool}: Fehler")
+            rejected = (tool or "").startswith("submit_")
+            parts.append(f"{tool}: abgelehnt" if rejected else f"{tool}: Fehler")
             messages.append(content)
         elif tool == "check_plan":
             report = json.loads(content)
@@ -185,6 +187,28 @@ def round_summary(number: int, record: dict[str, Any]) -> tuple[str, list[str]]:
             parts.append(f"{tool}: {content}")
     headline = "; ".join(parts) or record.get("text") or f"beendet ({record.get('stop_reason')})"
     return f"Runde {number} · {headline}", messages
+
+
+def gantt(plan: Plan, result: CheckResult, deadline: date) -> tuple[list[dict[str, Any]], date]:
+    """The bars of the Gantt chart and where the deadline line is drawn.
+
+    The time axis marks the start of each day. A bar covers whole days, so it runs to the
+    start of the day after the task's last day. The deadline day is a working day too, so
+    the line sits at its end the same way. Drawn at its start, a task finishing on the
+    deadline looked late."""
+    day = timedelta(days=1)
+    titles = {t.id: t.title for t in plan.tasks}
+    bars = [
+        {
+            "Aufgabe": f"{s.task_id} · {titles[s.task_id]}",
+            "Person": s.member,
+            "Start": s.start,
+            "Ende": s.end + day,
+            "Zeitraum": f"{s.start:%d.%m.} – {s.end:%d.%m.}",
+        }
+        for s in result.schedule
+    ]
+    return bars, deadline + day
 
 
 def to_markdown(project: Project, plan: Plan, result: CheckResult) -> str:
