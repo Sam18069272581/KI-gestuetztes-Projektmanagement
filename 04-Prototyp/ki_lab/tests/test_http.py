@@ -78,6 +78,32 @@ class HttpTests(unittest.TestCase):
             if duplicate:
                 duplicate.server_close()
 
+    def policy(self, server):
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urllib.request.urlopen('http://127.0.0.1:' + str(server.server_port) + '/') as response:
+                return response.headers['Content-Security-Policy']
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_framing_is_forbidden_by_default(self):
+        self.assertIn("frame-ancestors 'none';", self.policy(make_server(self.lab, port=0)))
+
+    def test_an_allowed_local_page_may_frame_the_lab(self):
+        allowed = ['http://localhost:8501', 'http://127.0.0.1:8501']
+        policy = self.policy(make_server(self.lab, port=0, frame_ancestors=allowed))
+        self.assertIn('frame-ancestors http://localhost:8501 http://127.0.0.1:8501;', policy)
+        self.assertNotIn("'none'; base-uri", policy)
+
+    def test_only_pages_on_this_computer_may_frame_the_lab(self):
+        for origin in ('https://evil.example', 'http://192.168.1.5:8501', 'http://localhost',
+                       'http://localhost:8501/x', "http://localhost:8501; script-src *", '*'):
+            with self.assertRaises(ValueError, msg=origin):
+                make_server(self.lab, port=0, frame_ancestors=[origin]).server_close()
+
 
 if __name__ == '__main__':
     unittest.main()

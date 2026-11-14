@@ -1,6 +1,7 @@
 """Loopback-only participant server; operator functions are CLI-only."""
 import argparse
 import json
+import re
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
@@ -17,7 +18,13 @@ class LocalServer(ThreadingHTTPServer):
         super().server_bind()
 
 
-def make_server(lab, port=8874):
+def make_server(lab, port=8874, frame_ancestors=()):
+    # Framing stays forbidden unless a page on this computer is named, e.g. the Streamlit app.
+    for origin in frame_ancestors:
+        if not re.fullmatch(r'http://(localhost|127\.0\.0\.1):\d{1,5}', origin):
+            raise ValueError('Nur Seiten auf diesem Rechner dürfen das Lab einbetten: ' + origin)
+    ancestors = ' '.join(frame_ancestors) or "'none'"
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
             pass  # Do not log bearer tokens or participant content.
@@ -30,7 +37,7 @@ def make_server(lab, port=8874):
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'no-referrer')
-            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors " + ancestors + "; base-uri 'none'; form-action 'self'")
             self.end_headers()
             self.wfile.write(body)
 
@@ -117,9 +124,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='KI · PM Lab — lokaler Studienserver')
     parser.add_argument('--port', type=int, default=8874)
     parser.add_argument('--db', default=str(ROOT / 'data' / 'lab.db'))
+    parser.add_argument('--allow-frame', action='append', default=[], metavar='ORIGIN',
+                        help='lokale Seite, die das Lab einbetten darf, z. B. http://localhost:8501')
     args = parser.parse_args()
     lab = Lab(args.db)
-    server = make_server(lab, args.port)
+    try:
+        server = make_server(lab, args.port, args.allow_frame)
+    except ValueError as exc:
+        lab.close()
+        parser.error(str(exc))
     print(f'KI · PM Lab: http://127.0.0.1:{server.server_port}', flush=True)
     print('KI konfiguriert: ' + ('ja' if lab.api_key and lab.model else 'nein — ehrlicher Fehlerpfad, keine Demo-Antworten'), flush=True)
     try:
