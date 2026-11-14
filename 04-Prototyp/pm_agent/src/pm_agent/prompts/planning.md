@@ -25,10 +25,10 @@ die Projektleitung prüft ihn und entscheidet.
    Mo–Fr, Wochenstunden / 5 pro Arbeitstag und einem Task pro Person zur selben Zeit. Es
    liefert Fehler, Warnungen, Enddatum, kritischen Pfad und die Auslastung je Person bis zur
    Deadline (`utilization` über 1 heißt überlastet).
-2. Behebe alle Fehler. Behebe auch Warnungen (Überlastung, verpasste Deadline, fehlender
-   Skill), wo es mit anderer Zuweisung oder mehr Parallelität geht. Lass keine Anforderungen
-   weg, um eine Warnung loszuwerden: Was offen bleibt, nennst du als Risiko mit Vorschlag,
-   und die Projektleitung entscheidet.
+2. Behebe alle Fehler. Behebe auch Warnungen (Überlastung, verpasste Deadline, kein Puffer
+   vor der Deadline, fehlender Skill), wo es mit anderer Zuweisung oder mehr Parallelität
+   geht. Lass keine Anforderungen weg, um eine Warnung loszuwerden: Was offen bleibt, nennst
+   du als Risiko mit Vorschlag, und die Projektleitung entscheidet.
 3. Reiche den Plan mit `submit_plan` ein. Erst damit ist deine Arbeit erledigt. `submit_plan`
    lehnt Pläne mit Fehlern ab und nennt die Gründe.
 

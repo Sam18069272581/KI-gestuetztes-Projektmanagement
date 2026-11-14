@@ -20,7 +20,7 @@ _DIGITS = 9
 
 def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
     """Structural errors stop the check. Otherwise the plan is scheduled, and the warnings
-    say what the project lead has to decide (deadline, overload, missing skills)."""
+    say what the project lead has to decide (deadline, buffer, overload, missing skills)."""
     errors = _structural_errors(plan, team, project)
     if errors:
         return CheckResult(errors=errors)
@@ -82,6 +82,14 @@ def check_plan(plan: Plan, team: list[Member], project: Project) -> CheckResult:
         warnings.append(
             f"Der Plan endet am {_fmt(end_date)}, {late} Arbeitstag{'' if late == 1 else 'e'} "
             f"nach der Deadline ({_fmt(project.deadline)})"
+        )
+    # end_date is a workday, so one workday in [end_date, deadline] is end_date itself: any
+    # delay misses the deadline. Counted from end_date, not the day after, which does not
+    # exist for 31.12.9999.
+    elif count_workdays(end_date, project.deadline) == 1:
+        warnings.append(
+            f"Der Plan endet am {_fmt(end_date)}, bis zur Deadline ({_fmt(project.deadline)}) "
+            "bleibt kein Arbeitstag Puffer"
         )
     for item in load:
         if round(item.utilization, _DIGITS) > 1:

@@ -128,7 +128,7 @@ def test_next_task_starts_on_the_day_the_previous_one_ends():
     assert s["C"].start == date(2026, 11, 16)
 
 
-def test_plan_that_exactly_fits_has_no_warnings_despite_float_noise():
+def test_plan_that_exactly_fits_is_neither_late_nor_overloaded_despite_float_noise():
     # 7 h/week = 1.4 h/day, so each 2.1 h task takes 1.5 days and the plan fills Mon-Wed.
     # The float sum is 3.0000000000000004 and the load 1.0000000000000002: a plain ceil
     # would end on Thursday, and a plain '> 1' would report an overload.
@@ -136,7 +136,9 @@ def test_plan_that_exactly_fits_has_no_warnings_despite_float_noise():
     p = plan(task("A", 2.1), task("B", 2.1, deps=["A"]), owners={"A": "Clara", "B": "Clara"})
     result = check_plan(p, [clara], project(deadline=date(2026, 11, 11)))
     assert result.end_date == date(2026, 11, 11)
-    assert result.warnings == []
+    assert result.warnings == [
+        "Der Plan endet am 11.11.2026, bis zur Deadline (11.11.2026) bleibt kein Arbeitstag Puffer"
+    ]
 
 
 def test_overload_and_missed_deadline_are_warnings_not_errors():
@@ -159,6 +161,24 @@ def test_slight_overload_reads_101_percent_and_one_day_late_is_singular():
     assert result.warnings == [
         "Der Plan endet am 16.11.2026, 1 Arbeitstag nach der Deadline (13.11.2026)",
         "Anna ist überlastet: 40.1 h zugewiesen, bis zur Deadline sind 40 h verfügbar (101%)",
+    ]
+
+
+def test_a_plan_without_a_workday_of_buffer_before_the_deadline_is_a_warning():
+    p = plan(task("A", 24), owners={"A": "Anna"})  # 3 workdays: Mon 09.11. to Wed 11.11.
+    on_the_day = check_plan(p, [ANNA], project(deadline=date(2026, 11, 11)))
+    assert on_the_day.warnings == [
+        "Der Plan endet am 11.11.2026, bis zur Deadline (11.11.2026) bleibt kein Arbeitstag Puffer"
+    ]
+    one_day_left = check_plan(p, [ANNA], project(deadline=date(2026, 11, 12)))
+    assert one_day_left.warnings == []
+
+
+def test_a_weekend_before_the_deadline_is_no_buffer():
+    p = plan(task("A", 40), owners={"A": "Anna"})  # Mon 09.11. to Fri 13.11.
+    result = check_plan(p, [ANNA], project(deadline=date(2026, 11, 15)))  # a Sunday
+    assert result.warnings == [
+        "Der Plan endet am 13.11.2026, bis zur Deadline (15.11.2026) bleibt kein Arbeitstag Puffer"
     ]
 
 

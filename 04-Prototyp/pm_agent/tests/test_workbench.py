@@ -171,11 +171,12 @@ def test_export_contains_dates_reasons_and_warnings():
 
 
 def test_a_task_that_ends_on_the_deadline_does_not_cross_the_deadline_line():
-    # The plan ends on Wed 11.11. With that day as the deadline the plan is on time (no
-    # warning), so no bar may reach beyond the line.
+    # The plan ends on Wed 11.11. With that day as the deadline the plan is on time (not
+    # reported as late), so no bar may reach beyond the line.
     on_the_day = PROJECT.model_copy(update={"deadline": date(2026, 11, 11)})
     result = check_plan(PLAN, TEAM, on_the_day)
-    assert result.end_date == on_the_day.deadline and not result.warnings[1:]
+    assert result.end_date == on_the_day.deadline
+    assert not any("nach der Deadline" in w for w in result.warnings)
 
     bars, line = gantt(PLAN, result, on_the_day.deadline)
 

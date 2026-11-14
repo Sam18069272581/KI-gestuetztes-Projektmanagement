@@ -63,7 +63,7 @@ einer `AgentError` ab. Jeder Lauf wird in `logs/` protokolliert.
 
 | Agent | Aufruf | Werkzeuge | Die Prüfung verlangt |
 |---|---|---|---|
-| Planung | `run_planning(project, team)` | `check_plan`, `submit_plan` | einen Plan ohne Fehler; Warnungen (Überlastung, Deadline, fehlende Skills) bleiben für die Projektleitung stehen |
+| Planung | `run_planning(project, team)` | `check_plan`, `submit_plan` | einen Plan ohne Fehler; Warnungen (Überlastung, Deadline, kein Puffer, fehlende Skills) bleiben für die Projektleitung stehen |
 | Durchführung | `run_status_summary(tracking, today)` in `followup.py` | `submit_status` | einen nächsten Schritt für jede Aufgabe im Verzug, keinen für fertige Aufgaben |
 | Kontrolle | `run_control_report(tracking, today)` in `followup.py` | `submit_control` | eine Gegenmaßnahme für jede Aufgabe im Verzug; bei Verzug nicht die Bewertung „im Plan“ |
 
