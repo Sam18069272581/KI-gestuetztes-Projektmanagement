@@ -1,11 +1,12 @@
 # PM-Agent
 
-KI-Agent für die Planungsphase von Softwareprojekten: Aufgaben zerlegen, Aufwand schätzen,
-nach Skills und Verfügbarkeit zuweisen, Terminplan und Risiken ableiten. Die Projektleitung
-prüft und entscheidet.
+Website der Projektgruppe 4 zum Thema „KI im Projektmanagement“. Kern ist ein KI-Agent für die
+Planungsphase von Softwareprojekten: Aufgaben zerlegen, Aufwand schätzen, nach Skills und
+Verfügbarkeit zuweisen, Terminplan und Risiken ableiten. Die Projektleitung prüft und
+entscheidet.
 
-Stand: Planungskern (Datenmodell und deterministische Prüfung), Agent mit Laufprotokoll und
-Streamlit-Oberfläche.
+Stand: Planung mit Claude und deterministischer Prüfung; Durchführung und Kontrolle als erste
+Fassung ohne LLM; das KI-Lab (Vergleichsexperiment, `../ki_lab`) ist eingebettet.
 
 ## Oberfläche
 
@@ -18,6 +19,26 @@ Die Oberfläche ist nur auf diesem Rechner erreichbar (`http://localhost:8501`),
 `.streamlit/config.toml`. Sonst könnte jeder im selben Netz Planungen auf Kosten des
 API-Schlüssels starten. Deshalb im Ordner `04-Prototyp/pm_agent` starten.
 
+Das Menü links:
+
+| Seite | Inhalt |
+|---|---|
+| Startseite | Überblick und Stand des übernommenen Projekts |
+| Agenten · Planung | Plan mit Claude erstellen, prüfen, anpassen, exportieren, als Projekt übernehmen |
+| Agenten · Durchführung | Status und Ist-Stunden je Aufgabe erfassen; Statusbericht und Arbeitspaketbeschreibungen aus Vorlagen (`src/pm_agent/templates`) |
+| Agenten · Kontrolle | Plan/Ist-Vergleich, Verzug, Kosten bei gesetztem Stundensatz, Zeit und Token der Planungsläufe |
+| KI-Lab | startet den Studienserver aus `../ki_lab` und zeigt ihn eingebettet |
+| Über uns, Impressum | Projektkontext; Impressumsangaben trägt das Team noch ein |
+
+Durchführung und Kontrolle rechnen nur mit dem übernommenen Plan (`data/projekt.json`) und dem
+erfassten Fortschritt. Ein Logo erscheint oben rechts, sobald `assets/logo.svg` oder
+`assets/logo.png` existiert.
+
+Für KI-Runden im KI-Lab zusätzlich `OPENAI_API_KEY` und `PM_MODEL` in `.env` eintragen. Ohne
+sie funktionieren die Runden ohne KI, KI-Runden melden einen Fehler.
+
+### Seite Planung
+
 Sechs Schritte als Reiter:
 
 1. **Team**: Personen mit Skills (z. B. `Python 4, SQL 3`) und Wochenstunden; lokal speichern
@@ -28,7 +49,8 @@ Sechs Schritte als Reiter:
 4. **Ergebnis**: Planende, Fehler, Warnungen, Gantt-Diagramm, Auslastung, Begründungen, Risiken.
 5. **Anpassen**: Tabelle ändern und erneut prüfen; nur die deterministische Prüfung, kein LLM.
 6. **Export**: Markdown oder CSV. Jeder Export wird mit Dauer und Änderungen in `logs/runs.csv`
-   vermerkt, als Datengrundlage für den Vorher-nachher-Vergleich.
+   vermerkt, als Datengrundlage für den Vorher-nachher-Vergleich. Ein Plan ohne Fehler lässt
+   sich hier als Projekt übernehmen.
 
 ## Agent
 
@@ -67,3 +89,6 @@ lokal und sind per `.gitignore` ausgeschlossen.
 
 Der Agent schickt Projektidee und Teamdaten (Namen, Skills, Wochenstunden, Notizen) an die
 Anthropic API. Teammitglieder müssen vorher zustimmen.
+
+Das KI-Lab speichert Sitzungen in `../ki_lab/data/` (ebenfalls ausgeschlossen) und schickt in
+KI-Runden Fallmaterial, Entwurf und Frage an OpenAI.
